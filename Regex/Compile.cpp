@@ -45,7 +45,7 @@ struct len_range {
 	int32_t upper;
 };
 
-uint8_t *chunk(int paren, int *flag_param, len_range &range_param);
+uint8_t *chunk(int paren, int *flag_param, len_range *range_param);
 
 const char Default_Meta_Char[] = "{.*+?[(|)^<>$";
 const char ASCII_Digits[]      = "0123456789"; // Same for all locales.
@@ -216,16 +216,16 @@ void emit_class_byte(T ch) noexcept {
 	if (pContext.FirstPass) {
 		pContext.Reg_Size++;
 
-		if (pContext.Is_Case_Insensitive && safe_ctype<isalpha>(ch)) {
+		if (pContext.Is_Case_Insensitive && safe_ctype<::isalpha>(ch)) {
 			pContext.Reg_Size++;
 		}
 
 	} else {
-		if (pContext.Is_Case_Insensitive && safe_ctype<isalpha>(ch)) {
+		if (pContext.Is_Case_Insensitive && safe_ctype<::isalpha>(ch)) {
 			/* For case insensitive character classes, emit both upper and lower
 			 * case versions of alphabetical characters. */
-			pContext.Code.push_back(static_cast<uint8_t>(safe_ctype<tolower>(ch)));
-			pContext.Code.push_back(static_cast<uint8_t>(safe_ctype<toupper>(ch)));
+			pContext.Code.push_back(static_cast<uint8_t>(safe_ctype<::tolower>(ch)));
+			pContext.Code.push_back(static_cast<uint8_t>(safe_ctype<::toupper>(ch)));
 		} else {
 			pContext.Code.push_back(static_cast<uint8_t>(ch));
 		}
@@ -424,7 +424,7 @@ uint8_t *shortcut_escape(Ch ch, int *flag_param) {
 		if (Flags == EMIT_CLASS_BYTES) {
 			clazz = ASCII_Digits;
 		} else if (Flags == EMIT_NODE) {
-			ret_val = (safe_ctype<islower>(ch) ? emit_node(DIGIT) : emit_node(NOT_DIGIT));
+			ret_val = (safe_ctype<::islower>(ch) ? emit_node(DIGIT) : emit_node(NOT_DIGIT));
 		}
 		break;
 	case 'l':
@@ -432,7 +432,7 @@ uint8_t *shortcut_escape(Ch ch, int *flag_param) {
 		if (Flags == EMIT_CLASS_BYTES) {
 			clazz = Letter_Char;
 		} else if (Flags == EMIT_NODE) {
-			ret_val = (safe_ctype<islower>(ch) ? emit_node(LETTER) : emit_node(NOT_LETTER));
+			ret_val = (safe_ctype<::islower>(ch) ? emit_node(LETTER) : emit_node(NOT_LETTER));
 		}
 		break;
 	case 's':
@@ -445,9 +445,9 @@ uint8_t *shortcut_escape(Ch ch, int *flag_param) {
 			clazz = White_Space;
 		} else if (Flags == EMIT_NODE) {
 			if (pContext.Match_Newline) {
-				ret_val = (safe_ctype<islower>(ch) ? emit_node(SPACE_NL) : emit_node(NOT_SPACE_NL));
+				ret_val = (safe_ctype<::islower>(ch) ? emit_node(SPACE_NL) : emit_node(NOT_SPACE_NL));
 			} else {
-				ret_val = (safe_ctype<islower>(ch) ? emit_node(SPACE) : emit_node(NOT_SPACE));
+				ret_val = (safe_ctype<::islower>(ch) ? emit_node(SPACE) : emit_node(NOT_SPACE));
 			}
 		}
 		break;
@@ -456,7 +456,7 @@ uint8_t *shortcut_escape(Ch ch, int *flag_param) {
 		if (Flags == EMIT_CLASS_BYTES) {
 			clazz = Word_Char;
 		} else if (Flags == EMIT_NODE) {
-			ret_val = (safe_ctype<islower>(ch) ? emit_node(WORD_CHAR) : emit_node(NOT_WORD_CHAR));
+			ret_val = (safe_ctype<::islower>(ch) ? emit_node(WORD_CHAR) : emit_node(NOT_WORD_CHAR));
 		}
 		break;
 
@@ -551,26 +551,26 @@ void branch_tail(uint8_t *ptr, int offset, uint8_t *val) {
  * text previously matched by another regex. *** IMPLEMENT LATER ***
  *--------------------------------------------------------------------*/
 template <ShortcutEscapeFlag Flags>
-uint8_t *back_ref(const char *ch, int *flag_param) {
+uint8_t *back_ref(Reader &input, int *flag_param) {
 
-	size_t c_offset           = 0;
 	const bool is_cross_regex = false;
 
 	uint8_t *ret_val;
 
 #if 0 // Implement cross regex backreferences later.
-	if (*ch == '~') {
-		c_offset++;
+	if (input.match('~')) {
 		is_cross_regex = true;
 	}
 #endif
 
+	const char digit = input.peek();
+
 	// Only \1, \2, ... \9 are supported.
-	if (!safe_ctype<isdigit>(ch[c_offset])) {
+	if (!safe_ctype<::isdigit>(digit)) {
 		return nullptr;
 	}
 
-	auto paren_no = static_cast<uint8_t>(ch[c_offset] - '0');
+	auto paren_no = static_cast<uint8_t>(digit - '0');
 
 	// Should be caught by numeric_escape.
 	if (paren_no == 0) {
@@ -584,8 +584,10 @@ uint8_t *back_ref(const char *ch, int *flag_param) {
 
 	if (Flags == EMIT_NODE) {
 		if (is_cross_regex) {
-			++pContext.Reg_Parse; /* Skip past the '~' in a cross regex back
-								   * reference. We only do this if we are emitting code. */
+
+			/* Skip past the '~' in a cross regex back reference.
+			 * We only do this if we are emitting code. */
+			pContext.Input.read();
 
 			if (pContext.Is_Case_Insensitive) {
 				ret_val = emit_node(X_REGEX_BR_CI);
@@ -623,16 +625,15 @@ uint8_t *back_ref(const char *ch, int *flag_param) {
  * together so that it can turn them into a single EXACTLY node, which
  * is smaller to store and faster to run.
  *----------------------------------------------------------------------*/
-uint8_t *atom(int *flag_param, len_range &range_param) {
+uint8_t *atom(int *flag_param, len_range *range_param) {
 
 	uint8_t *ret_val;
-	uint8_t test;
 	int flags_local;
 	len_range range_local;
 
 	*flag_param       = WORST; // Tentatively.
-	range_param.lower = 0;     // Idem
-	range_param.upper = 0;
+	range_param->lower = 0;     // Idem
+	range_param->upper = 0;
 
 	/* Process any regex comments, e.g. '(?# match next token->)'.  The
 	   terminating right parenthesis can not be escaped.  The comment stops at
@@ -640,34 +641,26 @@ uint8_t *atom(int *flag_param, len_range &range_param) {
 	   string)... period.  Handles multiple sequential comments,
 	   e.g. '(?# one)(?# two)...'  */
 
-	while (*pContext.Reg_Parse == '(' && pContext.Reg_Parse[1] == '?' && *(pContext.Reg_Parse + 2) == '#') {
+	while (pContext.Input.match("(?#")) {
 
-		pContext.Reg_Parse += 3;
 
-		while (pContext.Reg_Parse != pContext.InputString.end() && *pContext.Reg_Parse != ')') {
-			++pContext.Reg_Parse;
-		}
+		pContext.Input.read_until(')');
 
-		if (*pContext.Reg_Parse == ')') {
-			++pContext.Reg_Parse;
-		}
-
-		if (pContext.Reg_Parse == pContext.InputString.end() || *pContext.Reg_Parse == ')' || *pContext.Reg_Parse == '|') {
+		if (pContext.Input.eof() || pContext.Input.peek() == ')' || pContext.Input.peek() == '|') {
 			/* Hit end of regex string or end of parenthesized regex; have to
-			 return "something" (i.e. a NOTHING node) to avoid generating an
-			 error. */
+			 * return "something" (i.e. a NOTHING node) to avoid generating an
+			 * error. */
 
-			ret_val = emit_node(NOTHING);
-			return ret_val;
+			return emit_node(NOTHING);
 		}
 	}
 
-	if (pContext.Reg_Parse == pContext.InputString.end()) {
+	if (pContext.Input.eof()) {
 		// Supposed to be caught earlier.
 		Raise<RegexError>("internal error #3, 'atom'");
 	}
 
-	switch (*pContext.Reg_Parse++) {
+	switch (const char ch = pContext.Input.read()) {
 	case '^':
 		ret_val = emit_node(BOL);
 		break;
@@ -688,52 +681,38 @@ uint8_t *atom(int *flag_param, len_range &range_param) {
 		}
 
 		*flag_param |= (HAS_WIDTH | SIMPLE);
-		range_param.lower = 1;
-		range_param.upper = 1;
+		range_param->lower = 1;
+		range_param->upper = 1;
 		break;
 	case '(':
-		if (*pContext.Reg_Parse == '?') { // Special parenthetical expression
-			++pContext.Reg_Parse;
+		if (pContext.Input.match('?')) { // Special parenthetical expression
+
 			range_local.lower = 0; // Make sure it is always used
 			range_local.upper = 0;
 
-			if (*pContext.Reg_Parse == ':') {
-				++pContext.Reg_Parse;
-				ret_val = chunk(NO_CAPTURE, &flags_local, range_local);
-			} else if (*pContext.Reg_Parse == '=') {
-				++pContext.Reg_Parse;
-				ret_val = chunk(POS_AHEAD_OPEN, &flags_local, range_local);
-			} else if (*pContext.Reg_Parse == '!') {
-				++pContext.Reg_Parse;
-				ret_val = chunk(NEG_AHEAD_OPEN, &flags_local, range_local);
-			} else if (*pContext.Reg_Parse == 'i') {
-				++pContext.Reg_Parse;
-				ret_val = chunk(INSENSITIVE, &flags_local, range_local);
-			} else if (*pContext.Reg_Parse == 'I') {
-				++pContext.Reg_Parse;
-				ret_val = chunk(SENSITIVE, &flags_local, range_local);
-			} else if (*pContext.Reg_Parse == 'n') {
-				++pContext.Reg_Parse;
-				ret_val = chunk(NEWLINE, &flags_local, range_local);
-			} else if (*pContext.Reg_Parse == 'N') {
-				++pContext.Reg_Parse;
-				ret_val = chunk(NO_NEWLINE, &flags_local, range_local);
-			} else if (*pContext.Reg_Parse == '<') {
-				++pContext.Reg_Parse;
-				if (*pContext.Reg_Parse == '=') {
-					++pContext.Reg_Parse;
-					ret_val = chunk(POS_BEHIND_OPEN, &flags_local, range_local);
-				} else if (*pContext.Reg_Parse == '!') {
-					++pContext.Reg_Parse;
-					ret_val = chunk(NEG_BEHIND_OPEN, &flags_local, range_local);
-				} else {
-					Raise<RegexError>("invalid look-behind syntax, \"(?<%c...)\"", *pContext.Reg_Parse);
-				}
+			if (pContext.Input.match(':')) {
+				ret_val = chunk(NO_CAPTURE, &flags_local, &range_local);
+			} else if (pContext.Input.match('=')) {
+				ret_val = chunk(POS_AHEAD_OPEN, &flags_local, &range_local);
+			} else if (pContext.Input.match('!')) {
+				ret_val = chunk(NEG_AHEAD_OPEN, &flags_local, &range_local);
+			} else if (pContext.Input.match('i')) {
+				ret_val = chunk(INSENSITIVE, &flags_local, &range_local);
+			} else if (pContext.Input.match('I')) {
+				ret_val = chunk(SENSITIVE, &flags_local, &range_local);
+			} else if (pContext.Input.match('n')) {
+				ret_val = chunk(NEWLINE, &flags_local, &range_local);
+			} else if (pContext.Input.match('N')) {
+				ret_val = chunk(NO_NEWLINE, &flags_local, &range_local);
+			} else if (pContext.Input.match("<=")) {
+				ret_val = chunk(POS_BEHIND_OPEN, &flags_local, &range_local);
+			} else if (pContext.Input.match("<!")) {
+				ret_val = chunk(NEG_BEHIND_OPEN, &flags_local, &range_local);
 			} else {
-				Raise<RegexError>("invalid grouping syntax, \"(?%c...)\"", *pContext.Reg_Parse);
+				Raise<RegexError>("invalid grouping syntax, \"(?%c...)\"", pContext.Input.peek());
 			}
 		} else { // Normal capturing parentheses
-			ret_val = chunk(PAREN, &flags_local, range_local);
+			ret_val = chunk(PAREN, &flags_local, &range_local);
 		}
 
 		if (!ret_val) {
@@ -743,7 +722,7 @@ uint8_t *atom(int *flag_param, len_range &range_param) {
 		// Add HAS_WIDTH flag if it was set by call to chunk.
 
 		*flag_param |= flags_local & HAS_WIDTH;
-		range_param = range_local;
+		*range_param = range_local;
 		break;
 	case '|':
 	case ')':
@@ -752,7 +731,7 @@ uint8_t *atom(int *flag_param, len_range &range_param) {
 	case '?':
 	case '+':
 	case '*':
-		Raise<RegexError>("%c follows nothing", pContext.Reg_Parse[-1]);
+		Raise<RegexError>("%c follows nothing", ch);
 
 	case '{':
 		if (pContext.Enable_Counting_Quantifier) {
@@ -761,55 +740,62 @@ uint8_t *atom(int *flag_param, len_range &range_param) {
 			ret_val = emit_node(EXACTLY); // Treat braces as literals.
 			emit_byte('{');
 			emit_byte('\0');
-			range_param.lower = 1;
-			range_param.upper = 1;
+			range_param->lower = 1;
+			range_param->upper = 1;
 		}
 
 		break;
 
 	case '[': {
-		uint8_t last_emit = 0x00;
+#if 0
+		// NOTE(eteran): optimization for common classes, just output the instruction
+		// for the class instead of the naiive approach
+		if (pContext.Input.match("0-9]")) {
 
-		// Handle characters that can only occur at the start of a class.
-
-		if (*pContext.Reg_Parse == '^') { // Complement of range.
-			ret_val = emit_node(ANY_BUT);
-			++pContext.Reg_Parse;
-
-			/* All negated classes include newline unless escaped with
-			   a "(?n)" switch. */
-
-			if (!pContext.Match_Newline) {
-				emit_byte('\n');
-			}
+			ret_val = emit_node(DIGIT);
+			*flag_param |= HAS_WIDTH | SIMPLE;
+			range_param.lower = 1;
+			range_param.upper = 1;
 		} else {
-			ret_val = emit_node(ANY_OF);
-		}
+#endif
+			uint8_t last_emit = 0x00;
 
-		if (*pContext.Reg_Parse == ']' || *pContext.Reg_Parse == '-') {
-			/* If '-' or ']' is the first character in a class,
-			   it is a literal character in the class. */
+			// Handle characters that can only occur at the start of a class.
+			if (pContext.Input.match('^')) { // Complement of range.
+				ret_val = emit_node(ANY_BUT);
 
-			last_emit = static_cast<uint8_t>(*pContext.Reg_Parse);
-			emit_byte(*pContext.Reg_Parse);
-			++pContext.Reg_Parse;
-		}
+				/* All negated classes include newline unless escaped with
+				 * a "(?n)" switch. */
 
-		// Handle the rest of the class characters.
+				if (!pContext.Match_Newline) {
+					emit_byte('\n');
+				}
+			} else {
+				ret_val = emit_node(ANY_OF);
+			}
 
-		while (pContext.Reg_Parse != pContext.InputString.end() && *pContext.Reg_Parse != ']') {
-			if (*pContext.Reg_Parse == '-') { // Process a range, e.g [a-z].
-				++pContext.Reg_Parse;
+			if (pContext.Input.peek() == ']' || pContext.Input.peek() == '-') {
+				/* If '-' or ']' is the first character in a class,
+				 * it is a literal character in the class. */
 
-				if (*pContext.Reg_Parse == ']' || pContext.Reg_Parse == pContext.InputString.end()) {
-					/* If '-' is the last character in a class it is a literal
-					   character.  If 'Reg_Parse' points to the end of the
-					   regex string, an error will be generated later. */
+				char ch   = pContext.Input.read();
+				last_emit = static_cast<uint8_t>(ch);
+				emit_byte(ch);
+			}
 
-					emit_byte('-');
-					last_emit = '-';
-				} else {
-					/* We must get the range starting character value from the
+			// Handle the rest of the class characters.
+			while (pContext.Input.peek() != ']') {
+				if (pContext.Input.match('-')) { // Process a range, e.g [a-z].
+
+					if (pContext.Input.peek() == ']') {
+						/* If '-' is the last character in a class it is a literal
+						 * character.  If at the end of the regex string,
+						 * an error will be generated later. */
+
+						emit_byte('-');
+						last_emit = '-';
+					} else {
+						/* We must get the range starting character value from the
 					   emitted code since it may have been an escaped
 					   character.  'second_value' is set one larger than the
 					   just emitted character value.  This is done since
@@ -818,133 +804,133 @@ uint8_t *atom(int *flag_param, len_range &range_param) {
 					   already emitted the first character of the class, we do
 					   not want to emit it again. */
 
-					unsigned int last_value;
-					unsigned int second_value = static_cast<unsigned int>(last_emit) + 1;
+						unsigned int last_value;
+						unsigned int second_value = static_cast<unsigned int>(last_emit) + 1;
 
-					if (*pContext.Reg_Parse == '\\') {
-						/* Handle escaped characters within a class range.
+						if (pContext.Input.match('\\')) {
+							/* Handle escaped characters within a class range.
 						   Specifically disallow shortcut escapes as the end of
 						   a class range.  To allow this would be ambiguous
 						   since shortcut escapes represent a set of characters,
 						   and it would not be clear which character of the
 						   class should be treated as the "last" character. */
 
-						++pContext.Reg_Parse;
-
-						if ((test = numeric_escape<uint8_t>(*pContext.Reg_Parse, &pContext.Reg_Parse))) {
-							last_value = test;
-						} else if ((test = literal_escape<uint8_t>(*pContext.Reg_Parse))) {
-							last_value = test;
-						} else if (shortcut_escape<CHECK_CLASS_ESCAPE>(*pContext.Reg_Parse, nullptr)) {
-							Raise<RegexError>("\\%c is not allowed as range operand", *pContext.Reg_Parse);
+							if (uint8_t test = numeric_escape<uint8_t>(pContext.Input.peek(), pContext.Input)) {
+								last_value = test;
+							} else if (uint8_t test = literal_escape<uint8_t>(pContext.Input.peek())) {
+								last_value = test;
+							} else if (shortcut_escape<CHECK_CLASS_ESCAPE>(pContext.Input.peek(), nullptr)) {
+								Raise<RegexError>("\\%c is not allowed as range operand", pContext.Input.peek());
+							} else {
+								Raise<RegexError>("\\%c is an invalid char class escape sequence", pContext.Input.peek());
+							}
 						} else {
-							Raise<RegexError>("\\%c is an invalid char class escape sequence", *pContext.Reg_Parse);
+							last_value = static_cast<uint8_t>(pContext.Input.peek());
 						}
-					} else {
-						last_value = U_CHAR_AT(pContext.Reg_Parse);
-					}
 
-					if (pContext.Is_Case_Insensitive) {
-						second_value = static_cast<unsigned int>(safe_ctype<tolower>(second_value));
-						last_value   = static_cast<unsigned int>(safe_ctype<tolower>(last_value));
-					}
+						if (pContext.Is_Case_Insensitive) {
+							second_value = static_cast<unsigned int>(safe_ctype<::tolower>(second_value));
+							last_value   = static_cast<unsigned int>(safe_ctype<::tolower>(last_value));
+						}
 
-					/* For case insensitive, something like [A-_] will
+						/* For case insensitive, something like [A-_] will
 					   generate an error here since ranges are converted to
 					   lower case. */
 
-					if (second_value - 1 > last_value) {
-						Raise<RegexError>("invalid [] range");
-					}
+						if (second_value - 1 > last_value) {
+							Raise<RegexError>("invalid [] range");
+						}
 
-					/* If only one character in range (e.g [a-a]) then this
+						/* If only one character in range (e.g [a-a]) then this
 					   loop is not run since the first character of any range
 					   was emitted by the previous iteration of while loop. */
 
-					for (; second_value <= last_value; second_value++) {
-						emit_class_byte(second_value);
+						for (; second_value <= last_value; second_value++) {
+							emit_class_byte(second_value);
+						}
+
+						last_emit = static_cast<uint8_t>(last_value);
+
+						pContext.Input.read();
 					}
+				} else if (pContext.Input.match('\\')) {
 
-					last_emit = static_cast<uint8_t>(last_value);
+					if (uint8_t test = numeric_escape<uint8_t>(pContext.Input.peek(), pContext.Input)) {
+						emit_class_byte(test);
 
-					++pContext.Reg_Parse;
+						last_emit = test;
+					} else if (uint8_t test = literal_escape<uint8_t>(pContext.Input.peek())) {
+						emit_byte(test);
+						last_emit = test;
+					} else if (shortcut_escape<CHECK_CLASS_ESCAPE>(pContext.Input.peek(), nullptr)) {
 
-				} // End class character range code.
-			} else if (*pContext.Reg_Parse == '\\') {
-				++pContext.Reg_Parse;
-
-				if ((test = numeric_escape<uint8_t>(*pContext.Reg_Parse, &pContext.Reg_Parse)) != '\0') {
-					emit_class_byte(test);
-
-					last_emit = test;
-				} else if ((test = literal_escape<uint8_t>(*pContext.Reg_Parse)) != '\0') {
-					emit_byte(test);
-					last_emit = test;
-				} else if (shortcut_escape<CHECK_CLASS_ESCAPE>(*pContext.Reg_Parse, nullptr)) {
-
-					if (pContext.Reg_Parse[1] == '-') {
-						/* Specifically disallow shortcut escapes as the start
+						Reader temp = pContext.Input;
+						temp.read();
+						if (temp.peek() == '-') {
+							/* Specifically disallow shortcut escapes as the start
 						   of a character class range (see comment above.) */
 
-						Raise<RegexError>("\\%c not allowed as range operand", *pContext.Reg_Parse);
-					} else {
-						/* Emit the bytes that are part of the shortcut
+							Raise<RegexError>("\\%c not allowed as range operand", pContext.Input.peek());
+						} else {
+							/* Emit the bytes that are part of the shortcut
 						   escape sequence's range (e.g. \d = 0123456789) */
 
-						shortcut_escape<EMIT_CLASS_BYTES>(*pContext.Reg_Parse, nullptr);
+							shortcut_escape<EMIT_CLASS_BYTES>(pContext.Input.peek(), nullptr);
+						}
+					} else {
+						Raise<RegexError>("\\%c is an invalid char class escape sequence", pContext.Input.peek());
 					}
+
+					pContext.Input.read();
+
+					// End of class escaped sequence code
 				} else {
-					Raise<RegexError>("\\%c is an invalid char class escape sequence", *pContext.Reg_Parse);
+					const char ch = pContext.Input.read();
+					emit_class_byte(ch); // Ordinary class character.
+
+					last_emit = static_cast<uint8_t>(ch);
 				}
-
-				++pContext.Reg_Parse;
-
-				// End of class escaped sequence code
-			} else {
-				emit_class_byte(*pContext.Reg_Parse); // Ordinary class character.
-
-				last_emit = static_cast<uint8_t>(*pContext.Reg_Parse);
-				++pContext.Reg_Parse;
 			}
-		} // End of while (Reg_Parse != Reg_Parse_End && *pContext.Reg_Parse != ']')
 
-		if (*pContext.Reg_Parse != ']') {
-			Raise<RegexError>("missing right ']'");
-		}
+			if (!pContext.Input.match(']')) {
+				Raise<RegexError>("missing right ']'");
+			}
 
-		emit_byte('\0');
+			emit_byte('\0');
 
-		/* NOTE: it is impossible to specify an empty class.  This is
+			/* NOTE: it is impossible to specify an empty class.  This is
 		   because [] would be interpreted as "begin character class"
 		   followed by a literal ']' character and no "end character class"
 		   delimiter (']').  Because of this, it is always safe to assume
 		   that a class HAS_WIDTH. */
 
-		++pContext.Reg_Parse;
-		*flag_param |= HAS_WIDTH | SIMPLE;
-		range_param.lower = 1;
-		range_param.upper = 1;
+			*flag_param |= HAS_WIDTH | SIMPLE;
+			range_param->lower = 1;
+			range_param->upper = 1;
+#if 0
+		}
+#endif
 	}
 
 	break; // End of character class code.
 
 	case '\\':
-		if ((ret_val = shortcut_escape<EMIT_NODE>(*pContext.Reg_Parse, flag_param))) {
+		if ((ret_val = shortcut_escape<EMIT_NODE>(pContext.Input.peek(), flag_param))) {
 
-			++pContext.Reg_Parse;
-			range_param.lower = 1;
-			range_param.upper = 1;
+			pContext.Input.read();
+			range_param->lower = 1;
+			range_param->upper = 1;
 			break;
 
-		} else if ((ret_val = back_ref<EMIT_NODE>(pContext.Reg_Parse, flag_param))) {
+		} else if ((ret_val = back_ref<EMIT_NODE>(pContext.Input, flag_param))) {
 			/* Can't make any assumptions about a back-reference as to SIMPLE
 			   or HAS_WIDTH.  For example (^|<) is neither simple nor has
 			   width.  So we don't flip bits in flag_param here. */
 
-			++pContext.Reg_Parse;
+			pContext.Input.read();
 			// Back-references always have an unknown length
-			range_param.lower = -1;
-			range_param.upper = -1;
+			range_param->lower = -1;
+			range_param->upper = -1;
 			break;
 		}
 		/* At this point it is apparent that the escaped character is not a
@@ -955,10 +941,10 @@ uint8_t *atom(int *flag_param, len_range &range_param) {
 		 * escapes. */
 		NEDIT_FALLTHROUGH();
 	default:
-		--pContext.Reg_Parse; /* If we fell through from the above code, we are now
+		pContext.Input.putback(); /* If we fell through from the above code, we are now
 							   * pointing at the back slash (\) character. */
 		{
-			const char *parse_save;
+			Reader parse_save;
 			int len = 0;
 
 			if (pContext.Is_Case_Insensitive) {
@@ -970,48 +956,47 @@ uint8_t *atom(int *flag_param, len_range &range_param) {
 			/* Loop until we find a meta character, shortcut escape, back
 			 * reference, or end of regex string. */
 
-			for (; pContext.Reg_Parse != pContext.InputString.end() && !::strchr(pContext.Meta_Char, static_cast<int>(*pContext.Reg_Parse)); len++) {
+			for (; !pContext.Input.eof() && !::strchr(pContext.Meta_Char, static_cast<int>(pContext.Input.peek())); len++) {
 				/* Save where we are in case we have to back
 				   this character out. */
 
-				parse_save = pContext.Reg_Parse;
+				parse_save = pContext.Input;
 
-				if (*pContext.Reg_Parse == '\\') {
-					++pContext.Reg_Parse; // Point to escaped character
+				if (pContext.Input.match('\\')) {
 
-					if ((test = numeric_escape<uint8_t>(*pContext.Reg_Parse, &pContext.Reg_Parse))) {
+					// We now point to escaped character
+
+					if (uint8_t test = numeric_escape<uint8_t>(pContext.Input.peek(), pContext.Input)) {
 						if (pContext.Is_Case_Insensitive) {
 							emit_byte(tolower(test));
 						} else {
 							emit_byte(test);
 						}
-					} else if ((test = literal_escape<uint8_t>(*pContext.Reg_Parse))) {
+					} else if (uint8_t test = literal_escape<uint8_t>(pContext.Input.peek())) {
 						emit_byte(test);
-					} else if (back_ref<CHECK_ESCAPE>(pContext.Reg_Parse, nullptr)) {
+					} else if (back_ref<CHECK_ESCAPE>(pContext.Input, nullptr)) {
 						// Leave back reference for next 'atom' call
-						--pContext.Reg_Parse;
+						pContext.Input.putback();
 						break;
-					} else if (shortcut_escape<CHECK_ESCAPE>(*pContext.Reg_Parse, nullptr)) {
+					} else if (shortcut_escape<CHECK_ESCAPE>(pContext.Input.peek(), nullptr)) {
 						// Leave shortcut escape for next 'atom' call
-						--pContext.Reg_Parse;
+						pContext.Input.putback();
 						break;
 					} else {
 						/* None of the above calls generated an error message
 						   so generate our own here. */
 
-						Raise<RegexError>("\\%c is an invalid escape sequence", *pContext.Reg_Parse);
+						Raise<RegexError>("\\%c is an invalid escape sequence", pContext.Input.peek());
 					}
 
-					++pContext.Reg_Parse;
+					pContext.Input.read();
 				} else {
 					// Ordinary character
 					if (pContext.Is_Case_Insensitive) {
-						emit_byte(tolower(*pContext.Reg_Parse));
+						emit_byte(tolower(pContext.Input.read()));
 					} else {
-						emit_byte(*pContext.Reg_Parse);
+						emit_byte(pContext.Input.read());
 					}
-
-					++pContext.Reg_Parse;
 				}
 
 				/* If next regex token is a quantifier (?, +. *, or {m,n}) and
@@ -1021,8 +1006,8 @@ uint8_t *atom(int *flag_param, len_range &range_param) {
 				   have an EXACTLY node with an 'abc' operand followed by a STAR
 				   node followed by another EXACTLY node with a 'd' operand. */
 
-				if (isQuantifier(*pContext.Reg_Parse) && len > 0) {
-					pContext.Reg_Parse = parse_save; // Point to previous regex token.
+				if (isQuantifier(pContext.Input.peek()) && len > 0) {
+					pContext.Input = parse_save; // Point to previous regex token.
 
 					if (pContext.FirstPass) {
 						pContext.Reg_Size--;
@@ -1043,8 +1028,8 @@ uint8_t *atom(int *flag_param, len_range &range_param) {
 				*flag_param |= SIMPLE;
 			}
 
-			range_param.lower = len;
-			range_param.upper = len;
+			range_param->lower = len;
+			range_param->upper = len;
 
 			emit_byte('\0');
 		}
@@ -1062,7 +1047,7 @@ uint8_t *atom(int *flag_param, len_range &range_param) {
  * body of the last branch. It might seem that this node could be
  * dispensed with entirely, but the endmarker role is not redundant.
  *----------------------------------------------------------------------*/
-uint8_t *piece(int *flag_param, len_range &range_param) {
+uint8_t *piece(int *flag_param, len_range *range_param) {
 
 	uint8_t *next;
 	uint32_t min_max[2] = {0, REG_INFINITY};
@@ -1074,21 +1059,21 @@ uint8_t *piece(int *flag_param, len_range &range_param) {
 	int digit_present[2] = {0, 0};
 	len_range range_local;
 
-	uint8_t *ret_val = atom(&flags_local, range_local);
+	uint8_t *ret_val = atom(&flags_local, &range_local);
 
 	if (!ret_val) {
 		return nullptr; // Something went wrong.
 	}
 
-	char op_code = *pContext.Reg_Parse;
+	char op_code = pContext.Input.peek();
 
 	if (!isQuantifier(op_code)) {
 		*flag_param = flags_local;
-		range_param = range_local;
+		*range_param = range_local;
 		return ret_val;
 	} else if (op_code == '{') { // {n,m} quantifier present
 		brace_present++;
-		++pContext.Reg_Parse;
+		pContext.Input.read();
 
 		/* This code will allow specifying a counting range in any of the
 		   following forms:
@@ -1109,31 +1094,29 @@ uint8_t *piece(int *flag_param, len_range &range_param) {
 			   value for max and min of 65,535 is due to using 2 bytes to store
 			   each value in the compiled regex code. */
 
-			while (safe_ctype<isdigit>(*pContext.Reg_Parse)) {
+			while (safe_ctype<::isdigit>(pContext.Input.peek())) {
 				// (6553 * 10 + 6) > 65535 (16 bit max)
 
 				// NOTE(eteran): we're storing this into a 32-bit variable... so would be simpler
 				// to just convert the number using strtoul and just check if it's too large when
 				// we're done
 
-				if ((min_max[i] == 6553UL && (*pContext.Reg_Parse - '0') <= 5) || (min_max[i] <= 6552UL)) {
+				if ((min_max[i] == 6553UL && (pContext.Input.peek() - '0') <= 5) || (min_max[i] <= 6552UL)) {
 
-					min_max[i] = (min_max[i] * 10UL) + static_cast<uint32_t>(*pContext.Reg_Parse - '0');
-					++pContext.Reg_Parse;
+					min_max[i] = (min_max[i] * 10UL) + static_cast<uint32_t>(pContext.Input.read() - '0');
 
 					digit_present[i]++;
 				} else {
 					if (i == 0) {
-						Raise<RegexError>("min operand of {%lu%c,???} > 65535", min_max[0], *pContext.Reg_Parse);
+						Raise<RegexError>("min operand of {%lu%c,???} > 65535", min_max[0], pContext.Input.peek());
 					} else {
-						Raise<RegexError>("max operand of {%lu,%lu%c} > 65535", min_max[0], min_max[1], *pContext.Reg_Parse);
+						Raise<RegexError>("max operand of {%lu,%lu%c} > 65535", min_max[0], min_max[1], pContext.Input.peek());
 					}
 				}
 			}
 
-			if (!comma_present && *pContext.Reg_Parse == ',') {
+			if (!comma_present && pContext.Input.match(',')) {
 				comma_present = true;
-				++pContext.Reg_Parse;
 			}
 		}
 
@@ -1160,7 +1143,7 @@ uint8_t *piece(int *flag_param, len_range &range_param) {
 			min_max[1] = min_max[0]; // {x} means {x,x}
 		}
 
-		if (*pContext.Reg_Parse != '}') {
+		if (pContext.Input.peek() != '}') {
 			Raise<RegexError>("{m,n} specification missing right '}'");
 
 		} else if (min_max[1] != REG_INFINITY && min_max[0] > min_max[1]) {
@@ -1170,13 +1153,12 @@ uint8_t *piece(int *flag_param, len_range &range_param) {
 		}
 	}
 
-	++pContext.Reg_Parse;
+	pContext.Input.read();
 
 	// Check for a minimal matching (non-greedy or "lazy") specification.
 
-	if (*pContext.Reg_Parse == '?') {
+	if (pContext.Input.match('?')) {
 		lazy = true;
-		++pContext.Reg_Parse;
 	}
 
 	// Avoid overhead of counting if possible
@@ -1193,7 +1175,7 @@ uint8_t *piece(int *flag_param, len_range &range_param) {
 				regex with such nonsense. */
 
 			*flag_param = flags_local;
-			range_param = range_local;
+			*range_param = range_local;
 			return ret_val;
 		} else if (pContext.Num_Braces > static_cast<int>(std::numeric_limits<uint8_t>::max())) {
 			Raise<RegexError>("number of {m,n} constructs > %d", UINT8_MAX);
@@ -1221,15 +1203,15 @@ uint8_t *piece(int *flag_param, len_range &range_param) {
 	*flag_param = (min_max[0] > 0) ? (WORST | HAS_WIDTH) : WORST;
 	if (range_local.lower >= 0) {
 		if (min_max[1] != REG_INFINITY) {
-			range_param.lower = range_local.lower * min_max[0];
-			range_param.upper = range_local.upper * min_max[1];
+			range_param->lower = range_local.lower * min_max[0];
+			range_param->upper = range_local.upper * min_max[1];
 		} else {
-			range_param.lower = -1; // Not a fixed-size length
-			range_param.upper = -1;
+			range_param->lower = -1; // Not a fixed-size length
+			range_param->upper = -1;
 		}
 	} else {
-		range_param.lower = -1; // Not a fixed-size length
-		range_param.upper = -1;
+		range_param->lower = -1; // Not a fixed-size length
+		range_param->upper = -1;
 	}
 
 	/*---------------------------------------------------------------------*
@@ -1583,11 +1565,11 @@ uint8_t *piece(int *flag_param, len_range &range_param) {
 		Raise<RegexError>("internal error #2, 'piece'");
 	}
 
-	if (isQuantifier(*pContext.Reg_Parse)) {
+	if (isQuantifier(pContext.Input.peek())) {
 		if (op_code == '{') {
-			Raise<RegexError>("nested quantifiers, {m,n}%c", *pContext.Reg_Parse);
+			Raise<RegexError>("nested quantifiers, {m,n}%c", pContext.Input.peek());
 		} else {
-			Raise<RegexError>("nested quantifiers, %c%c", op_code, *pContext.Reg_Parse);
+			Raise<RegexError>("nested quantifiers, %c%c", op_code, pContext.Input.peek());
 		}
 	}
 
@@ -1600,7 +1582,7 @@ uint8_t *piece(int *flag_param, len_range &range_param) {
  * Processes one alternative of an '|' operator.  Connects the NEXT
  * pointers of each regex atom together sequentialy.
  *----------------------------------------------------------------------*/
-uint8_t *alternative(int *flag_param, len_range &range_param) {
+uint8_t *alternative(int *flag_param, len_range *range_param) {
 
 	uint8_t *ret_val;
 	uint8_t *chain;
@@ -1609,8 +1591,8 @@ uint8_t *alternative(int *flag_param, len_range &range_param) {
 	len_range range_local;
 
 	*flag_param       = WORST; // Tentatively.
-	range_param.lower = 0;     // Idem
-	range_param.upper = 0;
+	range_param->lower = 0;    // Idem
+	range_param->upper = 0;
 
 	ret_val = emit_node(BRANCH);
 	chain   = nullptr;
@@ -1618,8 +1600,8 @@ uint8_t *alternative(int *flag_param, len_range &range_param) {
 	/* Loop until we hit the start of the next alternative, the end of this set
 	   of alternatives (end of parentheses), or the end of the regex. */
 
-	while (*pContext.Reg_Parse != '|' && *pContext.Reg_Parse != ')' && pContext.Reg_Parse != pContext.InputString.end()) {
-		latest = piece(&flags_local, range_local);
+	while (pContext.Input.peek() != '|' && pContext.Input.peek() != ')' && !pContext.Input.eof()) {
+		latest = piece(&flags_local, &range_local);
 
 		if (!latest) {
 			return nullptr; // Something went wrong.
@@ -1628,11 +1610,11 @@ uint8_t *alternative(int *flag_param, len_range &range_param) {
 		*flag_param |= flags_local & HAS_WIDTH;
 		if (range_local.lower < 0) {
 			// Not a fixed length
-			range_param.lower = -1;
-			range_param.upper = -1;
-		} else if (range_param.lower >= 0) {
-			range_param.lower += range_local.lower;
-			range_param.upper += range_local.upper;
+			range_param->lower = -1;
+			range_param->upper = -1;
+		} else if (range_param->lower >= 0) {
+			range_param->lower += range_local.lower;
+			range_param->upper += range_local.upper;
 		}
 
 		if (chain) { // Connect the regex atoms together sequentialy.
@@ -1660,7 +1642,7 @@ uint8_t *alternative(int *flag_param, len_range &range_param) {
  * expression is a trifle forced, but the need to tie the tails of the  *
  * branches to what follows makes it hard to avoid.                     *
  *----------------------------------------------------------------------*/
-uint8_t *chunk(int paren, int *flag_param, len_range &range_param) {
+uint8_t *chunk(int paren, int *flag_param, len_range *range_param) {
 
 	uint8_t *ret_val  = nullptr;
 	uint8_t *ender    = nullptr;
@@ -1675,8 +1657,8 @@ uint8_t *chunk(int paren, int *flag_param, len_range &range_param) {
 	bool look_only                   = false;
 	uint8_t *emit_look_behind_bounds = nullptr;
 	*flag_param                      = HAS_WIDTH; // Tentatively.
-	range_param.lower                = 0;         // Idem
-	range_param.upper                = 0;
+	range_param->lower                = 0;         // Idem
+	range_param->upper                = 0;
 
 	// Make an OPEN node, if parenthesized.
 
@@ -1710,28 +1692,28 @@ uint8_t *chunk(int paren, int *flag_param, len_range &range_param) {
 
 	// Pick up the branches, linking them together.
 	do {
-		uint8_t *const this_branch = alternative(&flags_local, range_local);
+		uint8_t *const this_branch = alternative(&flags_local, &range_local);
 		if (!this_branch) {
 			return nullptr;
 		}
 
 		if (first) {
 			first       = false;
-			range_param = range_local;
+			*range_param = range_local;
 			if (!ret_val) {
 				ret_val = this_branch;
 			}
-		} else if (range_param.lower >= 0) {
+		} else if (range_param->lower >= 0) {
 			if (range_local.lower >= 0) {
-				if (range_local.lower < range_param.lower) {
-					range_param.lower = range_local.lower;
+				if (range_local.lower < range_param->lower) {
+					range_param->lower = range_local.lower;
 				}
-				if (range_local.upper > range_param.upper) {
-					range_param.upper = range_local.upper;
+				if (range_local.upper > range_param->upper) {
+					range_param->upper = range_local.upper;
 				}
 			} else {
-				range_param.lower = -1; // Branches have different lengths
-				range_param.upper = -1;
+				range_param->lower = -1; // Branches have different lengths
+				range_param->upper = -1;
 			}
 		}
 
@@ -1746,11 +1728,11 @@ uint8_t *chunk(int paren, int *flag_param, len_range &range_param) {
 
 		// Are there more alternatives to process?
 
-		if (*pContext.Reg_Parse != '|') {
+		if (pContext.Input.peek() != '|') {
 			break;
 		}
 
-		++pContext.Reg_Parse;
+		pContext.Input.read();
 	} while (true);
 
 	// Make a closing node, and hook it on the end.
@@ -1776,10 +1758,10 @@ uint8_t *chunk(int paren, int *flag_param, len_range &range_param) {
 
 	// Check for proper termination.
 
-	if (paren != NO_PAREN && *pContext.Reg_Parse++ != ')') {
+	if (paren != NO_PAREN && pContext.Input.read() != ')') {
 		Raise<RegexError>("missing right parenthesis ')'");
-	} else if (paren == NO_PAREN && pContext.Reg_Parse != pContext.InputString.end()) {
-		if (*pContext.Reg_Parse == ')') {
+	} else if (paren == NO_PAREN && !pContext.Input.eof()) {
+		if (pContext.Input.peek() == ')') {
 			Raise<RegexError>("missing left parenthesis '('");
 		} else {
 			Raise<RegexError>("junk on end"); // "Can't happen" - NOTREACHED
@@ -1788,26 +1770,26 @@ uint8_t *chunk(int paren, int *flag_param, len_range &range_param) {
 
 	// Check whether look behind has a fixed size
 	if (emit_look_behind_bounds) {
-		if (range_param.lower < 0) {
+		if (range_param->lower < 0) {
 			Raise<RegexError>("look-behind does not have a bounded size");
 		}
 
-		if (range_param.upper > 65535L) {
+		if (range_param->upper > 65535L) {
 			Raise<RegexError>("max. look-behind size is too large (>65535)");
 		}
 
 		if (!pContext.FirstPass) {
-			*emit_look_behind_bounds++ = PUT_OFFSET_L(range_param.lower);
-			*emit_look_behind_bounds++ = PUT_OFFSET_R(range_param.lower);
-			*emit_look_behind_bounds++ = PUT_OFFSET_L(range_param.upper);
-			*emit_look_behind_bounds   = PUT_OFFSET_R(range_param.upper);
+			*emit_look_behind_bounds++ = PUT_OFFSET_L(range_param->lower);
+			*emit_look_behind_bounds++ = PUT_OFFSET_R(range_param->lower);
+			*emit_look_behind_bounds++ = PUT_OFFSET_L(range_param->upper);
+			*emit_look_behind_bounds   = PUT_OFFSET_R(range_param->upper);
 		}
 	}
 
 	// For look ahead/behind, the length must be set to zero again
 	if (look_only) {
-		range_param.lower = 0;
-		range_param.upper = 0;
+		range_param->lower = 0;
+		range_param->upper = 0;
 	}
 
 	zero_width = 0;
@@ -1821,19 +1803,21 @@ uint8_t *chunk(int paren, int *flag_param, len_range &range_param) {
 		/* Determine if a parenthesized expression is modified by a quantifier
 		   that can have zero width. */
 
-		if (*pContext.Reg_Parse == '?' || *pContext.Reg_Parse == '*') {
+		if (pContext.Input.peek() == '?' || pContext.Input.peek() == '*') {
 			zero_width++;
-		} else if (*pContext.Reg_Parse == '{' && pContext.Brace_Char == '{') {
-			if (pContext.Reg_Parse[1] == ',' || pContext.Reg_Parse[1] == '}') {
-				zero_width++;
-			} else if (pContext.Reg_Parse[1] == '0') {
-				int i = 2;
+		} else if (pContext.Input.peek() == '{' && pContext.Brace_Char == '{') {
 
-				while (pContext.Reg_Parse[i] == '0') {
-					i++;
+			Reader temp = pContext.Input;
+			temp.read();
+
+			if (temp.peek() == ',' || temp.peek() == '}') {
+				zero_width++;
+			} else if (temp.match('0')) {
+
+				while (temp.match('0')) {
 				}
 
-				if (pContext.Reg_Parse[i] == ',') {
+				if (temp.peek() == ',') {
 					zero_width++;
 				}
 			}
@@ -1924,8 +1908,7 @@ Regex::Regex(view::string_view exp, int defaultFlags) {
 		pContext.Match_Newline = false;
 #endif
 
-		pContext.Reg_Parse       = exp.begin();
-		pContext.InputString     = exp;
+		pContext.Input           = Reader(exp);
 		pContext.Total_Paren     = 1;
 		pContext.Num_Braces      = 0;
 		pContext.Closed_Parens   = 0;
@@ -1935,7 +1918,7 @@ Regex::Regex(view::string_view exp, int defaultFlags) {
 		emit_byte('%'); // Placeholder for num of capturing parentheses.
 		emit_byte('%'); // Placeholder for num of general {m,n} constructs.
 
-		if (!chunk(NO_PAREN, &flags_local, range_local)) {
+		if (!chunk(NO_PAREN, &flags_local, &range_local)) {
 			Raise<RegexError>("internal error #10, 'CompileRE'");
 		}
 

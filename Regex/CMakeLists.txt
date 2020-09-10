@@ -17,6 +17,8 @@ set(SOURCES
 	RegexError.h
 	Substitute.cpp
 	Substitute.h
+	Reader.cpp
+	Reader.h
 )
 
 if(NEDIT_INCLUDE_DECOMPILER)
@@ -27,7 +29,7 @@ if(NEDIT_INCLUDE_DECOMPILER)
 	)
 endif()
 
-add_library(Regex 
+add_library(Regex
 	${SOURCES}
 )
 

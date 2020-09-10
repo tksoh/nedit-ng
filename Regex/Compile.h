@@ -5,13 +5,14 @@
 #include "Util/string_view.h"
 #include <bitset>
 #include <vector>
+#include "Reader.h"
 
 class Regex;
 
 // Global work variables for 'CompileRE'.
 struct ParseContext {
-	view::string_view::iterator Reg_Parse; // Input scan ptr (scans user's regex)
-	view::string_view InputString;
+	Reader Input;
+
 	std::vector<uint8_t> Code;
 	const char *Meta_Char;
 	size_t Reg_Size;                 // Size of compiled regex code.

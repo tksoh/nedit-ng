@@ -6,14 +6,10 @@
 #include "Opcodes.h"
 #include "RegexError.h"
 #include "Util/Raise.h"
+#include "Reader.h"
 
 #include <cstdint>
 #include <cstring>
-
-template <class Ptr>
-unsigned int U_CHAR_AT(Ptr p) noexcept {
-	return static_cast<unsigned int>(*p);
-}
 
 template <class T>
 T *OPERAND(T *p) noexcept {
@@ -70,6 +66,88 @@ constexpr R literal_escape(Ch ch) noexcept {
  * octal escape.  RegexError is thrown if \x0, \x00, \0, \00, \000, or
  * \0000 is specified.
  *--------------------------------------------------------------------*/
+template <class R, class Ch>
+R numeric_escape(Ch ch, Reader &reader) {
+
+	static const char digits[] = "fedcbaFEDCBA9876543210";
+
+	static const unsigned int digit_val[] = {
+		15, 14, 13, 12, 11, 10,      // Lower case Hex digits
+		15, 14, 13, 12, 11, 10,      // Upper case Hex digits
+		9, 8, 7, 6, 5, 4, 3, 2, 1, 0 // Decimal Digits
+	};
+
+	const char *digit_str;
+	unsigned int value = 0;
+	unsigned int radix = 8;
+	int width          = 3; // Can not be bigger than \0377
+	int pos_delta      = 14;
+
+	switch (ch) {
+	case '0':
+		digit_str = digits + pos_delta; // Only use Octal digits, i.e. 0-7.
+		break;
+
+	case 'x':
+	case 'X':
+		width     = 2; // Can not be bigger than \0377
+		radix     = 16;
+		pos_delta = 0;
+		digit_str = digits; // Use all of the digit characters.
+
+		break;
+
+	default:
+		return '\0'; // Not a numeric escape
+	}
+
+	Reader scan = reader;
+	scan.read(); // Only change *parse on success.
+
+	const char *pos_ptr = ::strchr(digit_str, static_cast<int>(scan.peek()));
+
+	for (int i = 0; pos_ptr != nullptr && (i < width); i++) {
+		const ptrdiff_t pos = (pos_ptr - digit_str) + pos_delta;
+		value               = (value * radix) + digit_val[pos];
+
+		/* If this digit makes the value over 255, treat this digit as a literal
+		   character instead of part of the numeric escape.  For example, \0777
+		   will be processed as \077 (an 'M') and a literal '7' character, NOT
+		   511 decimal which is > 255. */
+
+		if (value > 255) {
+			// Back out calculations for last digit processed.
+
+			value -= digit_val[pos];
+			value /= radix;
+
+			break; /* Note that scan will not be incremented and still points to
+					  the digit that caused overflow.  It will be decremented by
+					  the "else" below to point to the last character that is
+					  considered to be part of the octal escape. */
+		}
+
+		scan.read();
+		pos_ptr = ::strchr(digit_str, static_cast<int>(scan.peek()));
+	}
+
+	// Handle the case of "\0" i.e. trying to specify a nullptr character.
+	if (value == 0) {
+		if (ch == '0') {
+			Raise<RegexError>("\\00 is an invalid octal escape");
+		} else {
+			Raise<RegexError>("\\%c0 is an invalid hexadecimal escape", ch);
+		}
+	} else {
+		// Point to the last character of the number on success.
+
+		scan.putback();
+		reader = scan;
+	}
+
+	return static_cast<R>(value);
+}
+
 template <class R, class Ch>
 R numeric_escape(Ch ch, const char **parse) {
 
