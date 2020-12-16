@@ -2086,7 +2086,7 @@ void DocumentWidget::checkForChangesToFile() {
 
 	/* Warn the user if the file has been modified, unless checking is
 	 * turned off or the user has already been warned. */
-	if (!silent && ((info_->lastModTime != 0 && info_->lastModTime != statbuf.st_mtime) || info_->fileMissing)) {
+	if (!silent && ((info_->lastModTime != 0 && info_->lastModTime != statbuf.st_mtime) && !info_->fileMissing)) {
 
 		info_->lastModTime = 0; // Inhibit further warnings
 		info_->fileMissing = false;
