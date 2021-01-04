@@ -6977,6 +6977,10 @@ void DocumentWidget::selectNumberedLine(TextArea *area, int64_t lineNum) {
 	area->TextSetCursorPos(lineStart);
 }
 
+std::map<QChar, Bookmark> &DocumentWidget::getBookmarks() {
+	return markTable_;
+}
+
 void DocumentWidget::gotoMark(TextArea *area, QChar label, bool extendSel) {
 
 	// look up the mark in the mark table

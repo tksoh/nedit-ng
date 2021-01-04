@@ -222,6 +222,7 @@ public:
 	void stopHighlighting();
 	void updateHighlightStyles();
 	void updateSignals(MainWindow *from, MainWindow *to);
+	std::map<QChar, Bookmark> &getBookmarks();
 
 private:
 	MacroContinuationCode continueWorkProc();
