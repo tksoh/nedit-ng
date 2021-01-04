@@ -1,5 +1,6 @@
 
 #include "LineNumberArea.h"
+#include "DocumentWidget.h"
 #include "TextArea.h"
 #include "TextBuffer.h"
 #include <QPaintEvent>
@@ -29,6 +30,7 @@ QSize LineNumberArea::sizeHint() const {
 void LineNumberArea::paintEvent(QPaintEvent *event) {
 
 	const int lineHeight = area_->fixedFontHeight_;
+	auto bookmarks = area_->document_->getBookmarks();
 
 	QPainter painter(this);
 
@@ -51,6 +53,16 @@ void LineNumberArea::paintEvent(QPaintEvent *event) {
 			painter.fillRect(0, y, width(), lineHeight, Qt::darkCyan);
 		}
 #endif
+
+		for (auto &entry : bookmarks) {
+			Bookmark &bookmark = entry.second;
+			if (area_->visibleLineContainsCursor(visLine, bookmark.cursorPos)) {
+				QRect rect(1, y, lineHeight, lineHeight);
+				painter.fillRect(rect, Qt::cyan);
+				painter.drawText(rect, Qt::TextSingleLine | Qt::AlignVCenter | Qt::AlignHCenter, bookmark.label);
+			}
+		}
+
 		if (lineStart != -1 && (lineStart == 0 || area_->buffer_->BufGetCharacter(lineStart - 1) == '\n')) {
 			const auto number = QString::number(line);
 			QRect rect(Padding, y, width() - (Padding * 2), lineHeight);
