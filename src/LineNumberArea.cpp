@@ -31,6 +31,16 @@ void LineNumberArea::paintEvent(QPaintEvent *event) {
 
 	const int lineHeight = area_->fixedFontHeight_;
 	auto bookmarks = area_->document_->getBookmarks();
+	std::map<TextCursor, QChar> lineMarks;
+
+	for (auto &entry : bookmarks) {
+		Bookmark &bookmark = entry.second;
+		auto topLine = bookmark.cursorPos;
+		if (bookmark.sel.hasSelection()) {
+			topLine = bookmark.sel.start();
+		}
+		lineMarks.insert(std::pair<TextCursor, QChar>(topLine, bookmark.label));
+	}
 
 	QPainter painter(this);
 
@@ -54,12 +64,12 @@ void LineNumberArea::paintEvent(QPaintEvent *event) {
 		}
 #endif
 
-		for (auto &entry : bookmarks) {
-			Bookmark &bookmark = entry.second;
-			if (area_->visibleLineContainsCursor(visLine, bookmark.cursorPos)) {
+		for (auto &entry : lineMarks) {
+			auto markline = entry.first;
+			if (area_->visibleLineContainsCursor(visLine, entry.first)) {
 				QRect rect(1, y, lineHeight, lineHeight);
 				painter.fillRect(rect, Qt::cyan);
-				painter.drawText(rect, Qt::TextSingleLine | Qt::AlignVCenter | Qt::AlignHCenter, bookmark.label);
+				painter.drawText(rect, Qt::TextSingleLine | Qt::AlignVCenter | Qt::AlignHCenter, entry.second);
 			}
 		}
 
