@@ -65,7 +65,6 @@ void LineNumberArea::paintEvent(QPaintEvent *event) {
 #endif
 
 		for (auto &entry : lineMarks) {
-			auto markline = entry.first;
 			if (area_->visibleLineContainsCursor(visLine, entry.first)) {
 				QRect rect(1, y, lineHeight, lineHeight);
 				painter.fillRect(rect, Qt::cyan);
