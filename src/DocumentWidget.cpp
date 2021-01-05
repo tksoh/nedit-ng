@@ -6938,6 +6938,13 @@ void DocumentWidget::addMark(TextArea *area, QChar label) {
 		bookmark.sel       = info_->buffer->primary;
 		markTable_.emplace(label, bookmark);
 	}
+
+	// display bookmark indicators
+	if (area->getLineNumCols()) {
+		for (TextArea *area : textPanes()) {
+			area->repaint();
+		}
+	}
 }
 
 void DocumentWidget::selectNumberedLine(TextArea *area, int64_t lineNum) {
