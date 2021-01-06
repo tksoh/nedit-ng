@@ -7037,6 +7037,43 @@ void DocumentWidget::gotoMark(TextArea *area, QChar label, bool extendSel) {
 	area->setAutoShowInsertPos(true);
 }
 
+// function for sorting bookmarks by cursor position
+bool compare_cursor_pos(const Bookmark& first, const Bookmark& second)
+{
+	return first.cursorPos < second.cursorPos;
+}
+
+void DocumentWidget::gotoNextMark(TextArea *area, Direction direction) {
+	if (markTable_.size() < 1) {
+		QApplication::beep();
+		return;
+	}
+
+	// get bookmark list sorted by cursor position
+	std::list<Bookmark> markList;
+	for (auto &entry : markTable_) {
+		markList.push_back(entry.second);
+	}
+	markList.sort(compare_cursor_pos);
+	if (direction == Direction::Backward) {
+		markList.reverse();
+	}
+
+	auto curPos = area->cursorPos();
+	Bookmark nextMark;
+	for (auto &bookmark : markList) {
+		if (direction == Direction::Forward && bookmark.cursorPos > curPos) {
+			nextMark = bookmark;
+			break;
+		} else if (direction == Direction::Backward && bookmark.cursorPos < curPos) {
+			nextMark = bookmark;
+			break;
+		}
+	}
+
+	gotoMark(area, nextMark.label, false);
+}
+
 /**
  * @brief DocumentWidget::lockReasons
  * @return

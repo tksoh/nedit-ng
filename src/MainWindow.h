@@ -189,6 +189,7 @@ public:
 	void action_Goto_Line_Number(DocumentWidget *document, const QString &s);
 	void action_Goto_Mark_Dialog(DocumentWidget *document, bool extend);
 	void action_Goto_Mark(DocumentWidget *document, const QString &mark, bool extend);
+	void action_Goto_Next_Mark(DocumentWidget *document, Direction dir);
 	void action_Goto_Matching(DocumentWidget *document);
 	void action_Goto_Selected(DocumentWidget *document);
 	void action_Include_File(DocumentWidget *document);
@@ -339,6 +340,7 @@ public:
 	void action_Replace_Again_triggered();
 	void action_Mark_triggered();
 	void action_Goto_Mark_triggered();
+	void action_Goto_Next_Mark_triggered();
 	void action_Goto_Matching_triggered();
 	void action_Show_Calltip_triggered();
 	void action_Find_Definition_triggered();

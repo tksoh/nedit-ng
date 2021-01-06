@@ -175,6 +175,7 @@ public:
 	void finishMacroCmdExecution();
 	void gotoAP(TextArea *area, int lineNum, int column);
 	void gotoMark(TextArea *area, QChar label, bool extendSel);
+	void gotoNextMark(TextArea *area, Direction direction);
 	void gotoMatchingCharacter(TextArea *area, bool select);
 	void handleUnparsedRegion(const std::shared_ptr<TextBuffer> &styleBuf, TextCursor pos) const;
 	void handleUnparsedRegion(TextBuffer *styleBuf, TextCursor pos) const;

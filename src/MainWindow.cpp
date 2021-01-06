@@ -341,6 +341,7 @@ void MainWindow::connectSlots() {
 	connect(ui.action_Replace_Again, &QAction::triggered, this, &MainWindow::action_Replace_Again_triggered);
 	connect(ui.action_Mark, &QAction::triggered, this, &MainWindow::action_Mark_triggered);
 	connect(ui.action_Goto_Mark, &QAction::triggered, this, &MainWindow::action_Goto_Mark_triggered);
+	connect(ui.action_Goto_Next_Mark, &QAction::triggered, this, &MainWindow::action_Goto_Next_Mark_triggered);
 	connect(ui.action_Goto_Matching, &QAction::triggered, this, &MainWindow::action_Goto_Matching_triggered);
 	connect(ui.action_Show_Calltip, &QAction::triggered, this, &MainWindow::action_Show_Calltip_triggered);
 	connect(ui.action_Find_Definition, &QAction::triggered, this, &MainWindow::action_Find_Definition_triggered);
@@ -720,6 +721,7 @@ void MainWindow::setupMenuStrings() {
 	ui.action_Replace_Again->setText(tr("Re&place Again\t[Shift] Alt+T"));
 	ui.action_Mark->setText(tr("Mar&k\tAlt+M a-z"));
 	ui.action_Goto_Mark->setText(tr("G&oto Mark\t[Shift] Alt+G a-z"));
+	ui.action_Goto_Next_Mark->setText(tr("&Next Mark\t[Shift] Alt-N"));
 	ui.action_Goto_Matching->setText(tr("Goto &Matching (..)\t[Shift] Ctrl+M"));
 
 	create_shortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_9), this, [this]() { action_Shift_Left_Tabs(); });
@@ -3295,6 +3297,15 @@ void MainWindow::action_Goto_Mark(DocumentWidget *document, const QString &mark,
 	}
 }
 
+void MainWindow::action_Goto_Next_Mark(DocumentWidget *document, Direction dir) {
+
+	emit_event("goto_next_mark");
+
+	if (QPointer<TextArea> area = lastFocus()) {
+		document->gotoNextMark(area, dir);
+	}
+}
+
 /**
  * @brief MainWindow::action_Goto_Mark_Dialog
  * @param extend
@@ -3334,6 +3345,19 @@ void MainWindow::action_Goto_Mark_triggered() {
 
 	if (DocumentWidget *document = currentDocument()) {
 		action_Goto_Mark_Dialog(document, extend);
+	}
+}
+
+/**
+ * @brief MainWindow::action_Goto_Mark_triggered
+ */
+void MainWindow::action_Goto_Next_Mark_triggered() {
+
+	const bool shifted = (QApplication::keyboardModifiers() & Qt::SHIFT);
+
+	if (DocumentWidget *document = currentDocument()) {
+		auto dir = shifted? Direction::Backward: Direction::Forward;
+		action_Goto_Next_Mark(document, dir);
 	}
 }
 
