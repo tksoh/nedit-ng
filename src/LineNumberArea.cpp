@@ -35,6 +35,9 @@ void LineNumberArea::paintEvent(QPaintEvent *event) {
 
 	for (auto &entry : bookmarks) {
 		Bookmark &bookmark = entry.second;
+		if (!bookmark.label.isLetter()) {
+			continue;
+		}
 		auto topLine = bookmark.cursorPos;
 		if (bookmark.sel.hasSelection()) {
 			topLine = bookmark.sel.start();
