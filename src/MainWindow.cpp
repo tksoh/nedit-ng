@@ -721,7 +721,7 @@ void MainWindow::setupMenuStrings() {
 	ui.action_Replace_Again->setText(tr("Re&place Again\t[Shift] Alt+T"));
 	ui.action_Mark->setText(tr("Mar&k\tAlt+M a-z"));
 	ui.action_Goto_Mark->setText(tr("G&oto Mark\t[Shift] Alt+G a-z"));
-	ui.action_Goto_Next_Mark->setText(tr("&Next Mark\t[Shift] Alt-N"));
+	ui.action_Goto_Next_Mark->setText(tr("&Next Mark\t[Shift] Alt+N"));
 	ui.action_Goto_Matching->setText(tr("Goto &Matching (..)\t[Shift] Ctrl+M"));
 
 	create_shortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_9), this, [this]() { action_Shift_Left_Tabs(); });
@@ -733,6 +733,7 @@ void MainWindow::setupMenuStrings() {
 	create_shortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_R), this, [this]() { action_Shift_Replace(); });
 	create_shortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_M), this, [this]() { action_Shift_Goto_Matching(); });
 	create_shortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_Y), this, [this]() { action_Shift_Open_Selected(); });
+	create_shortcut(QKeySequence(Qt::ALT + Qt::SHIFT + Qt::Key_N), this, [this]() { action_Shift_Goto_Next_Mark(); });
 
 	// This is an annoying solution... we can probably do better...
 	for (int key = Qt::Key_A; key <= Qt::Key_Z; ++key) {
@@ -3303,6 +3304,15 @@ void MainWindow::action_Goto_Next_Mark(DocumentWidget *document, Direction dir) 
 
 	if (QPointer<TextArea> area = lastFocus()) {
 		document->gotoNextMark(area, dir);
+	}
+}
+
+void MainWindow::action_Shift_Goto_Next_Mark() {
+
+	emit_event("goto_next_mark");
+
+	if (DocumentWidget *document = currentDocument()) {
+		document->gotoNextMark(lastFocus(), Direction::Backward);
 	}
 }
 

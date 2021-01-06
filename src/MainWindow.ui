@@ -1812,7 +1812,10 @@
   </action>
   <action name="action_Goto_Next_Mark">
    <property name="text">
-    <string>Goto Next Mark</string>
+    <string>Next Mark</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+N</string>
    </property>
   </action>
  </widget>
