@@ -3300,7 +3300,7 @@ void MainWindow::action_Goto_Mark(DocumentWidget *document, const QString &mark,
 
 void MainWindow::action_Goto_Next_Mark(DocumentWidget *document, Direction dir) {
 
-	emit_event("goto_next_mark");
+	emit_event("goto_next_mark", to_string(dir));
 
 	if (QPointer<TextArea> area = lastFocus()) {
 		document->gotoNextMark(area, dir);
@@ -3309,7 +3309,7 @@ void MainWindow::action_Goto_Next_Mark(DocumentWidget *document, Direction dir) 
 
 void MainWindow::action_Shift_Goto_Next_Mark() {
 
-	emit_event("goto_next_mark");
+	emit_event("goto_next_mark", to_string(Direction::Backward));
 
 	if (DocumentWidget *document = currentDocument()) {
 		document->gotoNextMark(lastFocus(), Direction::Backward);
