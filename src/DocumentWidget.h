@@ -159,6 +159,7 @@ public:
 	std::vector<TextArea *> textPanes() const;
 	void abortShellCommand();
 	void addMark(TextArea *area, QChar label);
+	void deleteMark(TextArea *area, QChar label);
 	void beginSmartIndent(Verbosity verbosity);
 	void cancelMacroOrLearn();
 	void checkForChangesToFile();

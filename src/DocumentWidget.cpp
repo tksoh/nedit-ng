@@ -6947,6 +6947,27 @@ void DocumentWidget::addMark(TextArea *area, QChar label) {
 	}
 }
 
+void DocumentWidget::deleteMark(TextArea *area, QChar label) {
+
+	/* look for a matching mark to re-use, or advance
+	   nMarks to create a new one */
+	label = label.toUpper();
+
+	auto it = markTable_.find(label);
+	if (it == markTable_.end()) {
+		return;
+	}
+
+	markTable_.erase(label);
+
+	// display bookmark indicators
+	if (area->getLineNumCols()) {
+		for (TextArea *area : textPanes()) {
+			area->repaint();
+		}
+	}
+}
+
 void DocumentWidget::selectNumberedLine(TextArea *area, int64_t lineNum) {
 	int i;
 	TextCursor lineStart = {};

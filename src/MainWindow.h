@@ -207,6 +207,7 @@ public:
 	void action_Macro_Menu_Command(DocumentWidget *document, const QString &name);
 	void action_Mark(DocumentWidget *document);
 	void action_Mark(DocumentWidget *document, const QString &mark);
+	void action_Delete_Mark(DocumentWidget *document, const QString &mark);
 	void action_Move_Tab_To(DocumentWidget *document);
 	void action_New(DocumentWidget *document, NewMode mode = NewMode::Prefs);
 	void action_Open(DocumentWidget *document);
@@ -256,6 +257,7 @@ public:
 	// These are a bit weird as they are multi-key shortcuts
 	// and act a bit differently from the menu
 	void action_Mark_Shortcut();
+	void action_Shift_Mark_Shortcut();
 	void action_Shift_Goto_Mark_Shortcut();
 	void action_Goto_Mark_Shortcut();
 	void action_Goto_Mark_Shortcut_Helper(bool shifted);

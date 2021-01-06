@@ -738,6 +738,7 @@ void MainWindow::setupMenuStrings() {
 	// This is an annoying solution... we can probably do better...
 	for (int key = Qt::Key_A; key <= Qt::Key_Z; ++key) {
 		create_shortcut(QKeySequence(Qt::ALT + Qt::Key_M, key), this, [this]() { action_Mark_Shortcut(); });
+		create_shortcut(QKeySequence(Qt::SHIFT + Qt::ALT + Qt::Key_M, key), this, [this]() { action_Shift_Mark_Shortcut(); });
 		create_shortcut(QKeySequence(Qt::ALT + Qt::Key_G, key), this, [this]() { action_Goto_Mark_Shortcut(); });
 		create_shortcut(QKeySequence(Qt::SHIFT + Qt::ALT + Qt::Key_G, key), this, [this]() { action_Shift_Goto_Mark_Shortcut(); });
 	}
@@ -3263,7 +3264,6 @@ void MainWindow::action_Mark_triggered() {
  * @brief MainWindow::action_Mark_Shortcut_triggered
  */
 void MainWindow::action_Mark_Shortcut() {
-
 	if (auto shortcut = qobject_cast<QShortcut *>(sender())) {
 		const QKeySequence sequence = shortcut->key();
 
@@ -3277,6 +3277,45 @@ void MainWindow::action_Mark_Shortcut() {
 				QApplication::beep();
 			}
 		}
+	}
+}
+
+/**
+ * @brief MainWindow::action_Shift_Mark_Shortcut_triggered
+ */
+void MainWindow::action_Shift_Mark_Shortcut() {
+	if (auto shortcut = qobject_cast<QShortcut *>(sender())) {
+		const QKeySequence sequence = shortcut->key();
+
+		if (DocumentWidget *document = currentDocument()) {
+
+			const int key = sequence[1];
+			if (key >= Qt::Key_A && key <= Qt::Key_Z) {
+				QString keyseq(key);
+				action_Delete_Mark(document, keyseq);
+			} else {
+				QApplication::beep();
+			}
+		}
+	}
+}
+
+void MainWindow::action_Delete_Mark(DocumentWidget *document, const QString &mark) {
+
+	// NOTE(eteran): as per discussion#212, bookmarks from macros
+	// might not be letters! So we have looser requirements here than
+	// the UI instigated version.
+	if (mark.size() != 1) {
+		qWarning("NEdit: action requires a single-character label");
+		QApplication::beep();
+		return;
+	}
+
+	emit_event("delet_mark", mark);
+
+	const QChar ch = mark[0];
+	if (QPointer<TextArea> area = lastFocus()) {
+		document->deleteMark(area, ch);
 	}
 }
 
