@@ -7096,6 +7096,9 @@ void DocumentWidget::gotoNextMark(TextArea *area, Direction direction) {
 		}
 	}
 
+	if (nextMark.label == 0) {
+		nextMark = markList.front();
+	}
 	gotoMark(area, nextMark.label, false);
 }
 
