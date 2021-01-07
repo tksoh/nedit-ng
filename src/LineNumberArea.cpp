@@ -30,18 +30,20 @@ QSize LineNumberArea::sizeHint() const {
 void LineNumberArea::paintEvent(QPaintEvent *event) {
 
 	const int lineHeight = area_->fixedFontHeight_;
+
+	// gather bookmark data for display
 	auto bookmarks = area_->document_->getBookmarks();
 	std::map<TextCursor, QChar> lineMarks;
-
 	for (auto &entry : bookmarks) {
 		Bookmark &bookmark = entry.second;
+
+		// display bookmark a-z only
 		if (!bookmark.label.isLetter()) {
 			continue;
 		}
-		auto topLine = bookmark.cursorPos;
-		if (bookmark.sel.hasSelection()) {
-			topLine = bookmark.sel.start();
-		}
+
+		// place indicator on the line at top of selection, if any
+		auto topLine = bookmark.sel.hasSelection()? bookmark.sel.start() : bookmark.cursorPos;
 		lineMarks.insert(std::pair<TextCursor, QChar>(topLine, bookmark.label));
 	}
 
@@ -67,6 +69,7 @@ void LineNumberArea::paintEvent(QPaintEvent *event) {
 		}
 #endif
 
+		// draw indicator for bookmarks
 		for (auto it = lineMarks.cbegin(); it != lineMarks.cend(); /* no increment */) {
 			if (area_->visibleLineContainsCursor(visLine, it->first)) {
 				QRect rect(1, y, lineHeight, lineHeight);
