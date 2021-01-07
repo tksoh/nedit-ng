@@ -67,11 +67,16 @@ void LineNumberArea::paintEvent(QPaintEvent *event) {
 		}
 #endif
 
-		for (auto &entry : lineMarks) {
-			if (area_->visibleLineContainsCursor(visLine, entry.first)) {
+		for (auto it = lineMarks.cbegin(); it != lineMarks.cend(); /* no increment */) {
+			if (area_->visibleLineContainsCursor(visLine, it->first)) {
 				QRect rect(1, y, lineHeight, lineHeight);
 				painter.fillRect(rect, Qt::cyan);
-				painter.drawText(rect, Qt::TextSingleLine | Qt::AlignVCenter | Qt::AlignHCenter, entry.second);
+				painter.drawText(rect, Qt::TextSingleLine | Qt::AlignVCenter | Qt::AlignHCenter, it->second);
+
+				// reduce work on remaining lines
+				lineMarks.erase(it++);
+			} else {
+				it++;
 			}
 		}
 
