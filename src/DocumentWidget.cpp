@@ -7073,6 +7073,10 @@ void DocumentWidget::gotoNextMark(TextArea *area, Direction direction) {
 	// get bookmark list sorted by cursor position
 	std::list<Bookmark> markList;
 	for (auto &entry : markTable_) {
+		// accept bookmark a-z only
+		if (!entry.first.isLetter()) {
+			continue;
+		}
 		markList.push_back(entry.second);
 	}
 	markList.sort(compare_cursor_pos);
