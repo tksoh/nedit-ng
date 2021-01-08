@@ -46,11 +46,11 @@ void LineNumberArea::paintEvent(QPaintEvent *event) {
 		auto topLine = bookmark.sel.hasSelection()? bookmark.sel.start() : bookmark.cursorPos;
 
 		// ignore bookmarks not in view port
-		if (topLine < area_->firstChar_ or topLine > area_->lastChar_) {
+		if (topLine < area_->firstChar_ || topLine > area_->lastChar_) {
 			continue;
 		}
 
-		lineMarks.insert(std::pair<TextCursor, QChar>(topLine, bookmark.label));
+		lineMarks.emplace(topLine, bookmark.label);
 	}
 
 	// make font for bookmark indicators
