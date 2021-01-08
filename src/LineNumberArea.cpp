@@ -53,6 +53,10 @@ void LineNumberArea::paintEvent(QPaintEvent *event) {
 		lineMarks.insert(std::pair<TextCursor, QChar>(topLine, bookmark.label));
 	}
 
+	// make font for bookmark indicators
+	auto markFont = QFont(area_->font_);
+	markFont.setBold(true);
+
 	QPainter painter(this);
 
 	painter.fillRect(event->rect(), area_->lineNumBGColor_);
@@ -79,8 +83,14 @@ void LineNumberArea::paintEvent(QPaintEvent *event) {
 		for (auto it = lineMarks.cbegin(); it != lineMarks.cend(); /* no increment */) {
 			if (area_->visibleLineContainsCursor(visLine, it->first)) {
 				QRect rect(1, y, lineHeight, lineHeight);
-				painter.fillRect(rect, Qt::cyan);
+				painter.fillRect(rect, area_->bookmarkBGColor_);
+				painter.setPen(area_->bookmarkFGColor_);
+				painter.setFont(markFont);
 				painter.drawText(rect, Qt::TextSingleLine | Qt::AlignVCenter | Qt::AlignHCenter, it->second);
+
+				// restore setting for line numbers
+				painter.setPen(area_->lineNumFGColor_);
+				painter.setFont(area_->font_);
 
 				// reduce work on remaining lines
 				lineMarks.erase(it++);

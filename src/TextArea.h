@@ -370,6 +370,8 @@ private:
 	QColor cursorFGColor_                          = Qt::black;
 	QColor lineNumBGColor_                         = Qt::white; // Color for drawing line numbers
 	QColor lineNumFGColor_                         = Qt::black; // Color for drawing line numbers
+	QColor bookmarkBGColor_                        = Qt::blue; // Color for drawing bookmark indicators
+	QColor bookmarkFGColor_                        = Qt::white; // Color for drawing bookmark indicators
 	QColor matchBGColor_                           = Qt::red;
 	QColor matchFGColor_                           = Qt::white; // Highlight colors are used when flashing matching parens
 	QLabel *resizeWidget_                          = nullptr;
