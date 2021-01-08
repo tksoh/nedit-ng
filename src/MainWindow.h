@@ -190,6 +190,7 @@ public:
 	void action_Goto_Mark_Dialog(DocumentWidget *document, bool extend);
 	void action_Goto_Mark(DocumentWidget *document, const QString &mark, bool extend);
 	void action_Goto_Next_Mark(DocumentWidget *document, Direction dir);
+	void action_Goto_Next_Mark();
 	void action_Shift_Goto_Next_Mark();
 	void action_Goto_Matching(DocumentWidget *document);
 	void action_Goto_Selected(DocumentWidget *document);

@@ -734,6 +734,8 @@ void MainWindow::setupMenuStrings() {
 	create_shortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_M), this, [this]() { action_Shift_Goto_Matching(); });
 	create_shortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_Y), this, [this]() { action_Shift_Open_Selected(); });
 	create_shortcut(QKeySequence(Qt::ALT + Qt::SHIFT + Qt::Key_N), this, [this]() { action_Shift_Goto_Next_Mark(); });
+	create_shortcut(QKeySequence(Qt::Key_F2), this, [this]() { action_Goto_Next_Mark(); });
+	create_shortcut(QKeySequence(Qt::SHIFT + Qt::Key_F2), this, [this]() { action_Shift_Goto_Next_Mark(); });
 
 	// This is an annoying solution... we can probably do better...
 	for (int key = Qt::Key_A; key <= Qt::Key_Z; ++key) {
@@ -3343,6 +3345,15 @@ void MainWindow::action_Goto_Next_Mark(DocumentWidget *document, Direction dir) 
 
 	if (QPointer<TextArea> area = lastFocus()) {
 		document->gotoNextMark(area, dir);
+	}
+}
+
+void MainWindow::action_Goto_Next_Mark() {
+
+	emit_event("goto_next_mark", to_string(Direction::Forward));
+
+	if (DocumentWidget *document = currentDocument()) {
+		document->gotoNextMark(lastFocus(), Direction::Forward);
 	}
 }
 
