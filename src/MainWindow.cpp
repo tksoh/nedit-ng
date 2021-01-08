@@ -721,7 +721,7 @@ void MainWindow::setupMenuStrings() {
 	ui.action_Replace_Again->setText(tr("Re&place Again\t[Shift] Alt+T"));
 	ui.action_Mark->setText(tr("Mar&k\tAlt+M a-z"));
 	ui.action_Goto_Mark->setText(tr("G&oto Mark\t[Shift] Alt+G a-z"));
-	ui.action_Goto_Next_Mark->setText(tr("&Next Mark\t[Shift] Alt+N"));
+	ui.action_Goto_Next_Mark->setText(tr("Ne&xt Mark\t[Shift] Alt+N"));
 	ui.action_Goto_Matching->setText(tr("Goto &Matching (..)\t[Shift] Ctrl+M"));
 
 	create_shortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_9), this, [this]() { action_Shift_Left_Tabs(); });
