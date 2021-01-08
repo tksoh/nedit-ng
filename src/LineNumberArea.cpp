@@ -82,7 +82,7 @@ void LineNumberArea::paintEvent(QPaintEvent *event) {
 		// draw indicator for bookmarks
 		for (auto it = lineMarks.cbegin(); it != lineMarks.cend(); /* no increment */) {
 			if (area_->visibleLineContainsCursor(visLine, it->first)) {
-				QRect rect(1, y, lineHeight, lineHeight);
+				QRect rect(1, y+1, lineHeight-2, lineHeight-2);
 				painter.fillRect(rect, area_->bookmarkBGColor_);
 				painter.setPen(area_->bookmarkFGColor_);
 				painter.setFont(markFont);
