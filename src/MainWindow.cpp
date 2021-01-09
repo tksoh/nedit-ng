@@ -736,6 +736,7 @@ void MainWindow::setupMenuStrings() {
 	create_shortcut(QKeySequence(Qt::ALT + Qt::SHIFT + Qt::Key_N), this, [this]() { action_Shift_Goto_Next_Mark(); });
 	create_shortcut(QKeySequence(Qt::Key_F2), this, [this]() { action_Goto_Next_Mark(); });
 	create_shortcut(QKeySequence(Qt::SHIFT + Qt::Key_F2), this, [this]() { action_Shift_Goto_Next_Mark(); });
+	create_shortcut(QKeySequence(Qt::CTRL + Qt::Key_F2), this, [this]() { action_Mark_Auto(); });
 
 	// This is an annoying solution... we can probably do better...
 	for (int key = Qt::Key_A; key <= Qt::Key_Z; ++key) {
@@ -3363,6 +3364,16 @@ void MainWindow::action_Shift_Goto_Next_Mark() {
 
 	if (DocumentWidget *document = currentDocument()) {
 		document->gotoNextMark(lastFocus(), Direction::Backward);
+	}
+}
+
+void MainWindow::action_Mark_Auto() {
+	const auto ch = QLatin1Char('*');
+
+	emit_event("mark", QString(ch));
+
+	if (DocumentWidget *document = currentDocument()) {
+		document->addMark(lastFocus(), ch);
 	}
 }
 

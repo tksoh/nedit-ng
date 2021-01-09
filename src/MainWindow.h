@@ -192,6 +192,7 @@ public:
 	void action_Goto_Next_Mark(DocumentWidget *document, Direction dir);
 	void action_Goto_Next_Mark();
 	void action_Shift_Goto_Next_Mark();
+	void action_Mark_Auto();
 	void action_Goto_Matching(DocumentWidget *document);
 	void action_Goto_Selected(DocumentWidget *document);
 	void action_Include_File(DocumentWidget *document);
