@@ -84,6 +84,8 @@ public:
 		Character
 	};
 
+	static constexpr int BookmarkCols = 2;
+
 public:
 	TextArea(DocumentWidget *document, TextBuffer *buffer, const QFont &font);
 	TextArea(const TextArea &other) = delete;
