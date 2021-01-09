@@ -6921,6 +6921,24 @@ void DocumentWidget::setUserLocked(bool value) {
  */
 void DocumentWidget::addMark(TextArea *area, QChar label) {
 
+	// if label is a wildcard ("*"), find the next available letter
+	if (label == QLatin1Char('*')) {
+		for (int i=0; i<26; i++) {
+			QChar ch = QLatin1Char('A' + i);
+			auto it = markTable_.find(ch);
+			if (it == markTable_.end()) {
+				label = ch;
+				break;
+			}
+		}
+
+		// if we run out of labels to use...
+		if (label == QLatin1Char('*')) {
+			QApplication::beep();
+			return;
+		}
+	}
+
 	/* look for a matching mark to re-use, or advance
 	   nMarks to create a new one */
 	label = label.toUpper();
