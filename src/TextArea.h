@@ -84,7 +84,7 @@ public:
 		Character
 	};
 
-	static constexpr int BookmarkCols = 2;
+	static constexpr int BookmarkCols = 1;
 
 public:
 	TextArea(DocumentWidget *document, TextBuffer *buffer, const QFont &font);

@@ -6450,7 +6450,8 @@ void TextArea::setLineNumCols(int value) {
 	if (value == 0) {
 		setLineNumberAreaWidth(0);
 	} else {
-		setLineNumberAreaWidth((fixedFontWidth_ * (lineNumCols_ + BookmarkCols)) + (LineNumberArea::Padding * 2));
+		setLineNumberAreaWidth(fixedFontWidth_ * lineNumCols_ + LineNumberArea::Padding * 2 +
+							   fixedFontWidth_ * BookmarkCols + LineNumberArea::BookmarkPadding * 2);
 	}
 }
 

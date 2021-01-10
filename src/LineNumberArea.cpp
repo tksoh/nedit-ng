@@ -82,7 +82,7 @@ void LineNumberArea::paintEvent(QPaintEvent *event) {
 		// draw indicator for bookmarks
 		for (auto it = lineMarks.cbegin(); it != lineMarks.cend(); /* no increment */) {
 			if (area_->visibleLineContainsCursor(visLine, it->first)) {
-				QRect rect(1, y+1, lineHeight-2, lineHeight-2);
+				QRect rect(1, y+1, area_->fixedFontWidth_ + BookmarkPadding*2 -1, lineHeight-1);
 				painter.fillRect(rect, area_->bookmarkBGColor_);
 				painter.setPen(area_->bookmarkFGColor_);
 				painter.setFont(markFont);
@@ -99,6 +99,7 @@ void LineNumberArea::paintEvent(QPaintEvent *event) {
 			}
 		}
 
+		// draw line numbers
 		if (lineStart != -1 && (lineStart == 0 || area_->buffer_->BufGetCharacter(lineStart - 1) == '\n')) {
 			const auto number = QString::number(line);
 			QRect rect(Padding, y, width() - (Padding * 2), lineHeight);

@@ -10,6 +10,7 @@ class LineNumberArea : public QWidget {
 	Q_OBJECT
 public:
 	static constexpr int Padding = 5;
+	static constexpr int BookmarkPadding = 3;
 
 public:
 	explicit LineNumberArea(TextArea *area);
